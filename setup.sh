@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 echo "=============================="
-echo "       Downloader"
+echo "        Downloader"
 echo "=============================="
 
 # Detect operating system
@@ -23,33 +23,109 @@ if [ ! -f "downloader.cpp" ]; then
     exit 1
 fi
 
-# Check compiler
-if ! command -v "$COMPILER" >/dev/null 2>&1; then
-    echo "[!] Compiler not found."
-    echo "[*] Installing..."
+# ==============================
+# Termux
+# ==============================
+if [ "$SYSTEM" = "Termux" ]; then
 
-    if [ "$SYSTEM" = "Termux" ]; then
-        pkg update -y
+    echo "[*] Checking Termux dependencies..."
+
+    pkg update -y
+
+    # Compiler
+    if ! command -v clang++ >/dev/null 2>&1; then
+        echo "[*] Installing clang..."
         pkg install clang -y
-    else
+    fi
+
+    # Python
+    if ! command -v python3 >/dev/null 2>&1 && ! command -v python >/dev/null 2>&1; then
+        echo "[*] Installing Python..."
+        pkg install python -y
+    fi
+
+    # FFmpeg
+    if ! command -v ffmpeg >/dev/null 2>&1; then
+        echo "[*] Installing FFmpeg..."
+        pkg install ffmpeg -y
+    fi
+
+# ==============================
+# Linux
+# ==============================
+else
+
+    echo "[*] Checking Linux dependencies..."
+
+    # Compiler
+    if ! command -v g++ >/dev/null 2>&1; then
+        echo "[*] Installing g++..."
         sudo apt update
         sudo apt install g++ -y
     fi
+
+    # Python
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "[*] Installing Python..."
+        sudo apt update
+        sudo apt install python3 -y
+    fi
+
+    # FFmpeg
+    if ! command -v ffmpeg >/dev/null 2>&1; then
+        echo "[*] Installing FFmpeg..."
+        sudo apt update
+        sudo apt install ffmpeg -y
+    fi
+
 fi
 
-# Verify compiler
+# ==============================
+# Verify dependencies
+# ==============================
+
+echo
+echo "[*] Verifying dependencies..."
+
 if ! command -v "$COMPILER" >/dev/null 2>&1; then
-    echo "[!] Failed to install compiler."
+    echo "[!] Compiler installation failed!"
     exit 1
 fi
 
-echo "[+] Dependencies OK"
+if ! command -v ffmpeg >/dev/null 2>&1; then
+    echo "[!] FFmpeg installation failed!"
+    exit 1
+fi
+
+if ! command -v python3 >/dev/null 2>&1 && ! command -v python >/dev/null 2>&1; then
+    echo "[!] Python installation failed!"
+    exit 1
+fi
+
+echo "[+] All dependencies are ready!"
 echo
 
+# ==============================
+# Make yt-dlp executable
+# ==============================
+
+if [ -f "yt-dlp" ]; then
+    chmod +x yt-dlp
+    echo "[+] yt-dlp is ready."
+else
+    echo "[!] yt-dlp not found!"
+    exit 1
+fi
+
+echo
+
+# ==============================
 # Compile
+# ==============================
+
 echo "[*] Compiling..."
 
-"$COMPILER" downloader.cpp -o download
+"$COMPILER" downloader.cpp -o downloader
 
 if [ $? -ne 0 ]; then
     echo "[!] Compilation failed!"
@@ -59,8 +135,11 @@ fi
 echo "[+] Compilation successful!"
 echo
 
+# ==============================
 # Run
+# ==============================
+
 echo "[*] Running Downloader..."
 echo
 
-./download
+./downloader
