@@ -1,145 +1,172 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
-echo "=============================="
-echo "        Downloader"
-echo "=============================="
+# ==========================================
+#           Downloader Setup
+#           Powered by Lucifer
+# ==========================================
 
-# Detect operating system
-if [ -n "$PREFIX" ]; then
-    SYSTEM="Termux"
-    COMPILER="clang++"
-else
-    SYSTEM="Linux"
-    COMPILER="g++"
-fi
+set -e
 
-echo "[+] System: $SYSTEM"
-echo "[+] Compiler: $COMPILER"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$PROJECT_DIR"
+
+clear
+
+echo "=========================================="
+echo "              DOWNLOADER"
+echo "=========================================="
+echo "          Powered by Lucifer"
+echo "=========================================="
 echo
 
-# Check source file
-if [ ! -f "downloader.cpp" ]; then
-    echo "[!] downloader.cpp not found!"
+# ------------------------------------------
+# Check Operating System
+# ------------------------------------------
+
+if [ ! -f /etc/os-release ]; then
+    echo "[!] Unsupported operating system."
     exit 1
 fi
 
-# ==============================
-# Termux
-# ==============================
-if [ "$SYSTEM" = "Termux" ]; then
+source /etc/os-release
 
-    echo "[*] Checking Termux dependencies..."
+echo "[+] Operating System: $PRETTY_NAME"
+echo
 
-    pkg update -y
+# ------------------------------------------
+# Check Package Manager
+# ------------------------------------------
 
-    # Compiler
-    if ! command -v clang++ >/dev/null 2>&1; then
-        echo "[*] Installing clang..."
-        pkg install clang -y
-    fi
-
-    # Python
-    if ! command -v python3 >/dev/null 2>&1 && ! command -v python >/dev/null 2>&1; then
-        echo "[*] Installing Python..."
-        pkg install python -y
-    fi
-
-    # FFmpeg
-    if ! command -v ffmpeg >/dev/null 2>&1; then
-        echo "[*] Installing FFmpeg..."
-        pkg install ffmpeg -y
-    fi
-
-# ==============================
-# Linux
-# ==============================
-else
-
-    echo "[*] Checking Linux dependencies..."
-
-    # Compiler
-    if ! command -v g++ >/dev/null 2>&1; then
-        echo "[*] Installing g++..."
-        sudo apt update
-        sudo apt install g++ -y
-    fi
-
-    # Python
-    if ! command -v python3 >/dev/null 2>&1; then
-        echo "[*] Installing Python..."
-        sudo apt update
-        sudo apt install python3 -y
-    fi
-
-    # FFmpeg
-    if ! command -v ffmpeg >/dev/null 2>&1; then
-        echo "[*] Installing FFmpeg..."
-        sudo apt update
-        sudo apt install ffmpeg -y
-    fi
-
+if ! command -v apt >/dev/null 2>&1; then
+    echo "[!] This setup currently requires APT."
+    echo "[!] Supported systems include Debian/Ubuntu/Linux Mint."
+    exit 1
 fi
 
-# ==============================
-# Verify dependencies
-# ==============================
+# ------------------------------------------
+# Update Package List
+# ------------------------------------------
 
+echo "[*] Updating package list..."
+
+sudo apt update
+
+echo "[+] Package list updated."
 echo
-echo "[*] Verifying dependencies..."
 
-if ! command -v "$COMPILER" >/dev/null 2>&1; then
-    echo "[!] Compiler installation failed!"
-    exit 1
+# ------------------------------------------
+# Install Dependencies
+# ------------------------------------------
+
+echo "[*] Checking dependencies..."
+
+PACKAGES=()
+
+if ! command -v g++ >/dev/null 2>&1; then
+    PACKAGES+=("g++")
+fi
+
+if ! command -v python3 >/dev/null 2>&1; then
+    PACKAGES+=("python3")
 fi
 
 if ! command -v ffmpeg >/dev/null 2>&1; then
-    echo "[!] FFmpeg installation failed!"
-    exit 1
+    PACKAGES+=("ffmpeg")
 fi
 
-if ! command -v python3 >/dev/null 2>&1 && ! command -v python >/dev/null 2>&1; then
-    echo "[!] Python installation failed!"
-    exit 1
-fi
+if [ ${#PACKAGES[@]} -gt 0 ]; then
 
-echo "[+] All dependencies are ready!"
-echo
+    echo "[*] Installing missing dependencies..."
 
-# ==============================
-# Make yt-dlp executable
-# ==============================
+    sudo apt install -y "${PACKAGES[@]}"
 
-if [ -f "yt-dlp" ]; then
-    chmod +x yt-dlp
-    echo "[+] yt-dlp is ready."
+    echo "[+] Dependencies installed."
+
 else
-    echo "[!] yt-dlp not found!"
-    exit 1
+
+    echo "[+] All system dependencies are already installed."
+
 fi
 
 echo
 
-# ==============================
+# ------------------------------------------
+# Check yt-dlp
+# ------------------------------------------
+
+echo "[*] Checking yt-dlp..."
+
+if [ -f "$PROJECT_DIR/yt-dlp" ]; then
+
+    chmod +x "$PROJECT_DIR/yt-dlp"
+
+    echo "[+] Local yt-dlp found."
+
+else
+
+    echo "[!] Local yt-dlp was not found."
+
+    if command -v yt-dlp >/dev/null 2>&1; then
+
+        echo "[+] Using system yt-dlp."
+
+    else
+
+        echo "[*] Installing yt-dlp..."
+
+        python3 -m pip install -U "yt-dlp[default]" --break-system-packages
+
+        echo "[+] yt-dlp installed."
+
+    fi
+fi
+
+echo
+
+# ------------------------------------------
+# Check C++ Source
+# ------------------------------------------
+
+SOURCE_FILE="downloader.cpp"
+
+if [ ! -f "$SOURCE_FILE" ]; then
+
+    echo "[!] Source file not found:"
+    echo "    $SOURCE_FILE"
+    echo
+
+    echo "[!] Make sure the C++ source file is named:"
+    echo "    downloader.cpp"
+
+    exit 1
+fi
+
+# ------------------------------------------
 # Compile
-# ==============================
+# ------------------------------------------
 
-echo "[*] Compiling..."
-
-"$COMPILER" downloader.cpp -o downloader
-
-if [ $? -ne 0 ]; then
-    echo "[!] Compilation failed!"
-    exit 1
-fi
-
-echo "[+] Compilation successful!"
+echo "=========================================="
+echo "              COMPILATION"
+echo "=========================================="
 echo
 
-# ==============================
+echo "[*] Compiling Downloader..."
+
+g++ "$SOURCE_FILE" -o downloader
+
+echo
+echo "[+] Compilation successful."
+echo
+
+# ------------------------------------------
 # Run
-# ==============================
+# ------------------------------------------
 
-echo "[*] Running Downloader..."
+echo "=========================================="
+echo "              STARTING"
+echo "=========================================="
 echo
+
+chmod +x downloader
 
 ./downloader
